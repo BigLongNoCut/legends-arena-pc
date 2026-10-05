@@ -1,0 +1,34 @@
+# Склеивает exe из частей (GitHub не принимает в репозиторий файлы > 100 МБ)
+# и публикует его в Releases. Запускается при изменении parts/ или VERSION, либо вручную.
+name: Publish release
+on:
+  push:
+    branches: [main]
+    paths: ['parts/**', 'VERSION', '.github/workflows/release.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Склеить exe и проверить контрольную сумму
+        run: |
+          cat parts/LegendsArena.exe.part* > LegendsArena.exe
+          echo "$(cat parts/LegendsArena.exe.sha256)  LegendsArena.exe" | sha256sum -c -
+      - name: Опубликовать релиз
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(cat VERSION)
+          if gh release view "v$V" >/dev/null 2>&1; then
+            gh release upload "v$V" LegendsArena.exe --clobber
+          else
+            gh release create "v$V" LegendsArena.exe --target "$GITHUB_SHA" --title "Легенды Арены $V — Windows" --latest \
+              --notes "Скачайте **LegendsArena.exe** ниже и запустите — установка не нужна (Windows 10/11, 64-бит).
+
+          Если Windows покажет «Windows защитила ваш компьютер»: «Подробнее» → «Выполнить в любом случае» (файл без цифровой подписи).
+
+          F11 — полноэкранный режим."
+          fi
